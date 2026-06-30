@@ -2,10 +2,31 @@ require("dotenv").config();
 
 const app = require("./src/app");
 const connectDB = require("./src/config/db");
+const User = require("./src/models/User");
 const { execSync } = require("child_process");
+
+const seedAdmin = async () => {
+  try {
+    const existing = await User.findOne({ email: "admin@merkato.com" });
+    if (!existing) {
+      await User.create({
+        firstName: "Admin",
+        lastName: "User",
+        email: "admin@merkato.com",
+        password: "Admin123",
+        role: "admin",
+        isVerified: true,
+      });
+      console.log("👑 Admin user seeded (admin@merkato.com / Admin123)");
+    }
+  } catch (err) {
+    console.error("Admin seed error:", err.message);
+  }
+};
 
 const startServer = async () => {
   await connectDB();
+  await seedAdmin();
 
   const PORT = process.env.PORT || 5000;
   const NODE_ENV = process.env.NODE_ENV || "development";

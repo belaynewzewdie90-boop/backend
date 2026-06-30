@@ -4,6 +4,7 @@ const {
   register,
   verifyEmail,
   login,
+  googleAuth,
   forgotPassword,
   resetPassword,
   updateProfile,
@@ -15,6 +16,7 @@ const upload = require("../middlewares/uploadMiddleware");
 router.post("/register", register);
 router.get("/verify-email", verifyEmail);
 router.post("/login", login);
+router.post("/google", googleAuth);
 router.post("/forgot-password", forgotPassword);
 router.put("/reset-password/:token", resetPassword);
 

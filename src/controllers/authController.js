@@ -258,6 +258,88 @@ exports.login = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Google OAuth login/signup
+ * @route   POST /api/v1/auth/google
+ * @access  Public
+ */
+exports.googleAuth = async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Google access token is required",
+      });
+    }
+
+    // Fetch user info from Google API
+    const googleRes = await axios.get(
+      "https://www.googleapis.com/oauth2/v2/userinfo",
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+
+    const { email, given_name, family_name, name, picture } = googleRes.data;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Could not retrieve email from Google account",
+      });
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Create new user from Google profile
+      user = await User.create({
+        firstName: given_name || name || "User",
+        lastName: family_name || "",
+        email: email.toLowerCase(),
+        password: crypto.randomBytes(20).toString("hex"),
+        isVerified: true,
+        avatar: picture || "",
+      });
+    }
+
+    // Generate tokens
+    const tokens = generateTokens(user);
+
+    // Track sign-in
+    await AuditLog.create({
+      userId: user._id,
+      action: "GOOGLE_LOGIN",
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+      details: "User authenticated via Google OAuth",
+    }).catch(() => {});
+
+    res.status(200).json({
+      success: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
+  } catch (error) {
+    console.error("Google Auth Error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Google authentication failed. Please try again.",
+    });
+  }
+};
+
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
